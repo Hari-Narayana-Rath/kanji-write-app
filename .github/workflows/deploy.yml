@@ -31,6 +31,8 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          BASE_PATH: /kanji-write-app/
         run: npm run build
 
       - name: Setup Pages

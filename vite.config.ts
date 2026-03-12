@@ -3,6 +3,6 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/kanji-write-app/',
+  base: process.env.BASE_PATH || '/',
   plugins: [react()],
 })
