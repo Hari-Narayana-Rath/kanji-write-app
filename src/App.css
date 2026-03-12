@@ -4,14 +4,12 @@
   padding: 32px 0 40px;
 }
 
-.auth-screen,
 .home-screen {
   min-height: 100vh;
   display: grid;
   align-content: center;
 }
 
-.auth-card,
 .hero-card,
 .level-card,
 .practice-card {
@@ -22,25 +20,18 @@
   box-shadow: var(--panel-shadow);
 }
 
-.auth-card,
 .hero-card,
 .practice-card {
   border-radius: 36px;
 }
 
-.auth-card {
-  width: min(560px, 100%);
-  margin: 0 auto;
-  padding: 32px;
-}
-
 .hero-card {
   padding: 28px;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
+  justify-content: center;
+  align-items: center;
   margin-bottom: 24px;
+  text-align: center;
 }
 
 .lead {
@@ -49,20 +40,6 @@
   max-width: 60ch;
 }
 
-.auth-note,
-.subtle-mail {
-  margin: 12px 0 0;
-  color: var(--ink-soft);
-  font-size: 0.92rem;
-}
-
-.field {
-  display: grid;
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.field span,
 .stat-label {
   font-size: 0.82rem;
   text-transform: uppercase;
@@ -70,28 +47,13 @@
   color: var(--muted);
 }
 
-.field input {
-  border: 1px solid rgba(29, 53, 41, 0.12);
-  border-radius: 16px;
-  padding: 14px 16px;
-  font: inherit;
-  background: rgba(255, 252, 245, 0.88);
-}
-
-.level-picker,
 .level-grid,
 .level-stats {
   display: grid;
   gap: 12px;
 }
 
-.level-picker {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.level-picker button,
-.primary-button,
-.ghost-button {
+.primary-button {
   border-radius: 16px;
   padding: 14px 18px;
   font: inherit;
@@ -103,12 +65,6 @@
     opacity 160ms ease;
 }
 
-.level-picker button {
-  border: 1px solid rgba(29, 53, 41, 0.12);
-  background: rgba(255, 252, 245, 0.88);
-}
-
-.level-picker button.selected,
 .primary-button {
   background: var(--ink);
   color: #f8f2e5;
@@ -117,12 +73,6 @@
 
 .primary-button {
   margin-top: 22px;
-}
-
-.ghost-button {
-  border: 1px solid rgba(29, 53, 41, 0.12);
-  background: rgba(255, 252, 245, 0.84);
-  color: var(--ink);
 }
 
 .level-grid {
@@ -135,7 +85,6 @@
 }
 
 .level-card-top h2,
-.auth-card h1,
 .hero-card h1 {
   margin: 8px 0 0;
 }
@@ -378,7 +327,6 @@
     padding: 12px 0 24px;
   }
 
-  .auth-card,
   .hero-card,
   .practice-card,
   .level-card {
@@ -393,8 +341,7 @@
     align-items: center;
   }
 
-  .level-grid,
-  .level-picker {
+  .level-grid {
     grid-template-columns: 1fr;
   }
 
@@ -413,13 +360,11 @@
     padding: 8px 0 18px;
   }
 
-  .auth-screen,
   .home-screen,
   .practice-screen {
     min-height: 100dvh;
   }
 
-  .auth-card,
   .hero-card,
   .practice-card,
   .level-card {
@@ -444,7 +389,6 @@
 
   .tool-row button,
   .grade-row button,
-  .ghost-button,
   .primary-button {
     width: auto;
   }
