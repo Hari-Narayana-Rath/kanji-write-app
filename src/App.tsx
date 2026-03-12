@@ -1,0 +1,543 @@
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react'
+import { KanjiVGParser, KanjiWriter } from 'kanji-recognizer'
+import './App.css'
+import { lessonDeck, type LessonCard } from './data/lessonDeck'
+import { vocabIndex } from './data/vocabIndex'
+import {
+  getNextDueAt,
+  hydrateProgress,
+  saveProgress,
+  scheduleReview,
+  selectNextCard,
+  type ReviewGrade,
+  type ReviewProgressMap,
+} from './lib/srs'
+
+const PROFILE_KEY = 'kanji-write-profile'
+const PROGRESS_KEY = 'kanji-write-progress'
+const MAX_HINTS = 2
+
+type Level = 'N5' | 'N4' | 'N3'
+
+type Profile = {
+  name: string
+  level: Level
+}
+
+function formatReviewTime(timestamp: number | null) {
+  if (!timestamp) return 'All reviews finished for now'
+
+  return new Intl.DateTimeFormat([], {
+    hour: 'numeric',
+    minute: '2-digit',
+    month: 'short',
+    day: 'numeric',
+  }).format(timestamp)
+}
+
+function getRecommendedGrade(hintsUsed: number, mistakes: number): ReviewGrade {
+  if (mistakes >= 4) return 'again'
+  if (mistakes >= 2 || hintsUsed === MAX_HINTS) return 'hard'
+  if (mistakes === 0 && hintsUsed === 0) return 'easy'
+  return 'good'
+}
+
+function getLevelCards(level: Level) {
+  return lessonDeck.filter((card) => card.jlpt === level)
+}
+
+function getLevelProgress(progress: ReviewProgressMap, level: Level) {
+  const cards = getLevelCards(level)
+  return Object.fromEntries(cards.map((card) => [card.id, progress[card.id]]))
+}
+
+function getDueCount(progress: ReviewProgressMap, level: Level) {
+  const now = Date.now()
+  return getLevelCards(level).filter((card) => progress[card.id]?.dueAt <= now).length
+}
+
+function getNextDue(progress: ReviewProgressMap, level: Level) {
+  return getNextDueAt(getLevelProgress(progress, level))
+}
+
+function loadProfile() {
+  try {
+    const raw = window.localStorage.getItem(PROFILE_KEY)
+    return raw ? (JSON.parse(raw) as Profile) : null
+  } catch {
+    return null
+  }
+}
+
+function saveProfile(profile: Profile) {
+  window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
+}
+
+function useKanjiPaths(card: LessonCard | null) {
+  const [state, setState] = useState<{
+    cardId: string | null
+    paths: string[] | null
+    error: string | null
+  }>({
+    cardId: null,
+    paths: null,
+    error: null,
+  })
+
+  useEffect(() => {
+    if (!card) return
+
+    let cancelled = false
+    KanjiVGParser.baseUrl = '/kanjivg/kanji/'
+
+    KanjiVGParser.fetchData(card.kanji)
+      .then((paths) => {
+        if (!cancelled) {
+          setState({ cardId: card.id, paths, error: null })
+        }
+      })
+      .catch((error: Error) => {
+        if (!cancelled) {
+          setState({ cardId: card.id, paths: null, error: error.message })
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [card])
+
+  return {
+    loading: Boolean(card && state.cardId !== card.id),
+    paths: state.cardId === card?.id ? state.paths : null,
+    error: state.cardId === card?.id ? state.error : null,
+  }
+}
+
+function LoginPage({ onSave }: { onSave: (profile: Profile) => void }) {
+  const [name, setName] = useState('')
+  const [level, setLevel] = useState<Level>('N5')
+
+  return (
+    <main className="screen auth-screen">
+      <section className="auth-card">
+        <p className="eyebrow">Kanji Write</p>
+        <h1>Personal study space</h1>
+        <p className="lead">
+          Save your name on this device, choose a starting level, and keep review progress separated by JLPT deck.
+        </p>
+
+        <label className="field">
+          <span>Name</span>
+          <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" />
+        </label>
+
+        <div className="field">
+          <span>Starting level</span>
+          <div className="level-picker">
+            {(['N5', 'N4', 'N3'] as Level[]).map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={item === level ? 'selected' : ''}
+                onClick={() => setLevel(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="primary-button"
+          onClick={() => onSave({ name: name.trim() || 'Learner', level })}
+        >
+          Continue
+        </button>
+      </section>
+    </main>
+  )
+}
+
+function HomePage({
+  profile,
+  progress,
+  onStart,
+  onEditProfile,
+}: {
+  profile: Profile
+  progress: ReviewProgressMap
+  onStart: (level: Level) => void
+  onEditProfile: () => void
+}) {
+  const levels: Level[] = ['N5', 'N4', 'N3']
+
+  return (
+    <main className="screen home-screen">
+      <header className="hero-card">
+        <div>
+          <p className="eyebrow">Welcome back</p>
+          <h1>{profile.name}</h1>
+          <p className="lead">Open one JLPT deck at a time. N5 never mixes N4 or N3 cards, and the same rule applies to every level.</p>
+        </div>
+        <button type="button" className="ghost-button" onClick={onEditProfile}>
+          Edit profile
+        </button>
+      </header>
+
+      <section className="level-grid">
+        {levels.map((level) => {
+          const cards = getLevelCards(level)
+          const due = getDueCount(progress, level)
+          const nextDue = getNextDue(progress, level)
+
+          return (
+            <article key={level} className="level-card">
+              <div className="level-card-top">
+                <p className="eyebrow">{level}</p>
+                <h2>{cards.length} kanji</h2>
+              </div>
+
+              <div className="level-stats">
+                <div>
+                  <span className="stat-label">Due now</span>
+                  <strong>{due}</strong>
+                </div>
+                <div>
+                  <span className="stat-label">Next due</span>
+                  <strong>{formatReviewTime(nextDue)}</strong>
+                </div>
+              </div>
+
+              <p className="level-note">
+                {level === 'N5' && 'Foundation deck for beginner writing practice.'}
+                {level === 'N4' && 'Intermediate deck with only N4 kanji.'}
+                {level === 'N3' && 'Upper-intermediate deck with only N3 kanji.'}
+              </p>
+
+              <button type="button" className="primary-button" onClick={() => onStart(level)}>
+                Open {level}
+              </button>
+            </article>
+          )
+        })}
+      </section>
+    </main>
+  )
+}
+
+function PracticeBoard({
+  card,
+  level,
+  loading,
+  paths,
+  error,
+  onGrade,
+}: {
+  card: LessonCard | null
+  level: Level
+  loading: boolean
+  paths: string[] | null
+  error: string | null
+  onGrade: (card: LessonCard, grade: ReviewGrade) => void
+}) {
+  const writerId = useId().replace(/[:]/g, '')
+  const stageRef = useRef<HTMLDivElement | null>(null)
+  const writerRef = useRef<KanjiWriter | null>(null)
+  const [strokeProgress, setStrokeProgress] = useState(0)
+  const [mistakes, setMistakes] = useState(0)
+  const [hintsUsed, setHintsUsed] = useState(0)
+  const [completed, setCompleted] = useState(false)
+  const [animating, setAnimating] = useState(false)
+  const recommendedGrade = getRecommendedGrade(hintsUsed, mistakes)
+  const vocabItems = card ? vocabIndex[card.kanji]?.slice(0, 4) ?? [] : []
+
+  const onStrokeCorrect = useEffectEvent(() => {
+    setStrokeProgress((value) => value + 1)
+  })
+
+  const onStrokeIncorrect = useEffectEvent(() => {
+    setMistakes((value) => value + 1)
+  })
+
+  const onKanjiComplete = useEffectEvent(() => {
+    setCompleted(true)
+    setAnimating(false)
+  })
+
+  useEffect(() => {
+    if (!stageRef.current || !card || !paths) return
+
+    stageRef.current.innerHTML = ''
+
+    const writer = new KanjiWriter(writerId, paths, {
+      width: 420,
+      height: 420,
+      strokeColor: '#1d3529',
+      correctColor: '#1d3529',
+      incorrectColor: '#b7410e',
+      hintColor: '#0f766e',
+      gridColor: '#d8d2c3',
+      strokeWidth: 6,
+      showGhost: false,
+      showGrid: true,
+      passThreshold: 18,
+      startDistThreshold: 42,
+      lengthRatioMin: 0.38,
+      lengthRatioMax: 1.85,
+      hintDuration: 900,
+      snapDuration: 170,
+    })
+
+    const baseOnCorrect = writer.onCorrect.bind(writer)
+    const baseOnIncorrect = writer.onIncorrect.bind(writer)
+
+    writer.onCorrect = async () => {
+      onStrokeCorrect()
+      await baseOnCorrect()
+    }
+
+    writer.onIncorrect = () => {
+      onStrokeIncorrect()
+      baseOnIncorrect()
+    }
+
+    writer.onComplete = onKanjiComplete
+    writerRef.current = writer
+
+    return () => {
+      writer.destroy()
+      writerRef.current = null
+    }
+  }, [card, paths, writerId])
+
+  function handleHint() {
+    if (!writerRef.current || hintsUsed >= MAX_HINTS || completed || animating) return
+    writerRef.current.hint()
+    setHintsUsed((value) => value + 1)
+  }
+
+  function handleReset() {
+    if (!writerRef.current || animating) return
+    writerRef.current.clear()
+    setStrokeProgress(0)
+    setCompleted(false)
+  }
+
+  function handleReveal() {
+    if (!writerRef.current || animating || completed) return
+    setAnimating(true)
+    setHintsUsed(MAX_HINTS)
+    writerRef.current.animate().catch(() => setAnimating(false))
+  }
+
+  return (
+    <section className="practice-card">
+      <header className="prompt-header">
+        <div>
+          <p className="eyebrow">Write the kanji for</p>
+          <h1>{card?.kana ?? 'おつかれさま'}</h1>
+        </div>
+        <div className="stats-row">
+          <span>{card?.jlpt ?? level}</span>
+          <span>{card ? `${card.strokes} strokes` : 'Done'}</span>
+          <span>{Math.max(MAX_HINTS - hintsUsed, 0)} hints left</span>
+        </div>
+      </header>
+
+      <section className="stage-panel">
+        <div className="stage-meta">
+          <div>
+            <p className="label">Prompt</p>
+            <p className="value">{card?.meaning ?? 'Session complete'}</p>
+          </div>
+          <div>
+            <p className="label">Progress</p>
+            <p className="value">{card && paths ? `${strokeProgress}/${paths.length}` : '0/0'}</p>
+          </div>
+          <div>
+            <p className="label">Suggested rating</p>
+            <p className="value">{recommendedGrade}</p>
+          </div>
+        </div>
+
+        <div className="board-wrap">
+          {!card ? (
+            <div className="empty-state">
+              <p>No more due cards in {level}.</p>
+              <span>Come back later for the next review.</span>
+            </div>
+          ) : (
+            <>
+              {loading && <div className="board-overlay">Loading stroke data…</div>}
+              {error && <div className="board-overlay error">{error}</div>}
+              <div id={writerId} ref={stageRef} className="writer-stage" />
+              {completed && (
+                <div className="completion-banner">
+                  <span>Kanji complete</span>
+                  <strong>{card.kanji}</strong>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="actions-row">
+          <button
+            type="button"
+            onClick={handleHint}
+            disabled={!card || loading || completed || hintsUsed >= MAX_HINTS || animating}
+          >
+            Hint
+          </button>
+          <button type="button" onClick={handleReset} disabled={!card || loading || animating}>
+            Reset
+          </button>
+          <button type="button" onClick={handleReveal} disabled={!card || loading || completed || animating}>
+            Reveal
+          </button>
+        </div>
+
+        {card && vocabItems.length > 0 && (
+          <section className="vocab-panel">
+            <div className="vocab-header">
+              <p className="label">Useful vocab</p>
+              <span>{card.kanji} words</span>
+            </div>
+            <div className="vocab-list">
+              {vocabItems.map((item) => (
+                <article key={`${card.kanji}-${item.word}-${item.reading}`} className="vocab-card">
+                  <div className="vocab-main">
+                    <strong>{item.word}</strong>
+                    <span>{item.reading}</span>
+                  </div>
+                  <p>{item.meaning}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+      </section>
+
+      {card && (
+        <footer className="review-panel">
+          <div className="review-copy">
+            <p className="eyebrow">Anki-style scheduling</p>
+            <p>Only {level} cards are scheduled here. N5, N4, and N3 stay fully separate.</p>
+          </div>
+          <div className="grade-row">
+            <button type="button" className="grade again" onClick={() => onGrade(card, 'again')} disabled={!completed}>
+              Again
+            </button>
+            <button type="button" className="grade hard" onClick={() => onGrade(card, 'hard')} disabled={!completed}>
+              Hard
+            </button>
+            <button type="button" className="grade good" onClick={() => onGrade(card, 'good')} disabled={!completed}>
+              Good
+            </button>
+            <button type="button" className="grade easy" onClick={() => onGrade(card, 'easy')} disabled={!completed}>
+              Easy
+            </button>
+          </div>
+        </footer>
+      )}
+    </section>
+  )
+}
+
+function PracticePage({
+  level,
+  profile,
+  progress,
+  onGrade,
+  onBack,
+}: {
+  level: Level
+  profile: Profile
+  progress: ReviewProgressMap
+  onGrade: (card: LessonCard, grade: ReviewGrade) => void
+  onBack: () => void
+}) {
+  const cards = getLevelCards(level)
+  const currentCard = selectNextCard(cards, getLevelProgress(progress, level))
+  const { loading, paths, error } = useKanjiPaths(currentCard)
+
+  return (
+    <main className="screen practice-screen">
+      <header className="practice-topbar">
+        <button type="button" className="ghost-button" onClick={onBack}>
+          Back
+        </button>
+        <div className="topbar-copy">
+          <p className="eyebrow">{profile.name}</p>
+          <strong>{level} practice</strong>
+        </div>
+        <div className="topbar-stats">
+          <span>{getDueCount(progress, level)} due</span>
+          <span>{cards.length} cards</span>
+          <span>{formatReviewTime(getNextDue(progress, level))}</span>
+        </div>
+      </header>
+
+      <PracticeBoard
+        key={currentCard?.id ?? 'empty'}
+        card={currentCard}
+        level={level}
+        loading={loading}
+        paths={paths}
+        error={error}
+        onGrade={onGrade}
+      />
+    </main>
+  )
+}
+
+function App() {
+  const [profile, setProfile] = useState<Profile | null>(() => loadProfile())
+  const [currentLevel, setCurrentLevel] = useState<Level | null>(null)
+  const [progress, setProgress] = useState<ReviewProgressMap>(() =>
+    hydrateProgress(lessonDeck, PROGRESS_KEY),
+  )
+
+  useEffect(() => {
+    saveProgress(progress, PROGRESS_KEY)
+  }, [progress])
+
+  function handleSaveProfile(nextProfile: Profile) {
+    saveProfile(nextProfile)
+    setProfile(nextProfile)
+    setCurrentLevel(null)
+  }
+
+  function handleGrade(card: LessonCard, grade: ReviewGrade) {
+    setProgress((previous) => scheduleReview(previous, card.id, grade, Date.now()))
+  }
+
+  if (!profile) {
+    return <LoginPage onSave={handleSaveProfile} />
+  }
+
+  if (!currentLevel) {
+    return (
+      <HomePage
+        profile={profile}
+        progress={progress}
+        onStart={setCurrentLevel}
+        onEditProfile={() => setProfile(null)}
+      />
+    )
+  }
+
+  return (
+    <PracticePage
+      level={currentLevel}
+      profile={profile}
+      progress={progress}
+      onGrade={handleGrade}
+      onBack={() => setCurrentLevel(null)}
+    />
+  )
+}
+
+export default App
