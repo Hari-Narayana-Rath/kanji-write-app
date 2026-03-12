@@ -322,21 +322,6 @@ function PracticeBoard({
             <>
               {loading && <div className="board-overlay">Loading stroke data…</div>}
               <div id={writerId} ref={stageRef} className="writer-stage" />
-              <div className="board-controls">
-                <button
-                  type="button"
-                  onClick={handleHint}
-                  disabled={!card || loading || completed || hintsUsed >= MAX_HINTS || animating}
-                >
-                  Hint
-                </button>
-                <button type="button" onClick={handleReset} disabled={!card || loading || animating}>
-                  Reset
-                </button>
-                <button type="button" onClick={handleReveal} disabled={!card || loading || completed || animating}>
-                  Reveal
-                </button>
-              </div>
               {completed && (
                 <div className="completion-banner">
                   <span>Kanji complete</span>
@@ -345,6 +330,22 @@ function PracticeBoard({
               )}
             </>
           )}
+        </div>
+
+        <div className="tool-row">
+          <button
+            type="button"
+            onClick={handleHint}
+            disabled={!card || loading || completed || hintsUsed >= MAX_HINTS || animating}
+          >
+            Hint
+          </button>
+          <button type="button" onClick={handleReset} disabled={!card || loading || animating}>
+            Reset
+          </button>
+          <button type="button" onClick={handleReveal} disabled={!card || loading || completed || animating}>
+            Reveal
+          </button>
         </div>
 
       </section>
