@@ -20,7 +20,6 @@ type Level = 'N5' | 'N4' | 'N3'
 type Profile = {
   name: string
   email: string
-  level: Level
 }
 
 type StoredProfiles = Record<string, Profile>
@@ -138,7 +137,6 @@ function useKanjiPaths(card: LessonCard | null) {
 function LoginPage({ onSave }: { onSave: (profile: Profile) => void }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [level, setLevel] = useState<Level>('N5')
   const [error, setError] = useState('')
 
   function handleContinue() {
@@ -151,8 +149,8 @@ function LoginPage({ onSave }: { onSave: (profile: Profile) => void }) {
 
     const existing = loadStoredProfiles()[normalizedEmail]
     const profile: Profile = existing
-      ? { ...existing, name: name.trim() || existing.name, level }
-      : { name: name.trim() || 'Learner', email: normalizedEmail, level }
+      ? { ...existing, name: name.trim() || existing.name }
+      : { name: name.trim() || 'Learner', email: normalizedEmail }
 
     setError('')
     onSave(profile)
@@ -187,22 +185,6 @@ function LoginPage({ onSave }: { onSave: (profile: Profile) => void }) {
             autoComplete="name"
           />
         </label>
-
-        <div className="field">
-          <span>Starting level</span>
-          <div className="level-picker">
-            {(['N5', 'N4', 'N3'] as Level[]).map((item) => (
-              <button
-                key={item}
-                type="button"
-                className={item === level ? 'selected' : ''}
-                onClick={() => setLevel(item)}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
 
         <button
           type="button"
@@ -293,12 +275,14 @@ function PracticeBoard({
   level,
   loading,
   paths,
+  error,
   onGrade,
 }: {
   card: LessonCard | null
   level: Level
   loading: boolean
   paths: string[] | null
+  error: string | null
   onGrade: (card: LessonCard, grade: ReviewGrade) => void
 }) {
   const writerId = useId().replace(/[:]/g, '')
@@ -336,12 +320,6 @@ function PracticeBoard({
       hintDuration: 900,
       snapDuration: 170,
     })
-
-    const baseOnCorrect = writer.onCorrect.bind(writer)
-
-    writer.onCorrect = async () => {
-      await baseOnCorrect()
-    }
 
     writer.onComplete = onKanjiComplete
     writerRef.current = writer
@@ -390,6 +368,7 @@ function PracticeBoard({
           ) : (
             <>
               {loading && <div className="board-overlay">Loading stroke data…</div>}
+              {error && <div className="board-overlay">{error}</div>}
               <div id={writerId} ref={stageRef} className="writer-stage" />
               {completed && (
                 <div className="completion-banner">
@@ -448,7 +427,7 @@ function PracticePage({
 }) {
   const cards = getLevelCards(level)
   const currentCard = selectNextCard(cards, getLevelProgress(progress, level))
-  const { loading, paths } = useKanjiPaths(currentCard)
+  const { loading, paths, error } = useKanjiPaths(currentCard)
 
   return (
     <main className="screen practice-screen">
@@ -468,6 +447,7 @@ function PracticePage({
         level={level}
         loading={loading}
         paths={paths}
+        error={error}
         onGrade={onGrade}
       />
     </main>
