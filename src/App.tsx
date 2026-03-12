@@ -231,7 +231,7 @@ function PracticeBoard({
       <header className="prompt-header">
         <div>
           <p className="eyebrow">Write the kanji for</p>
-          <h1>{card?.kana ?? 'おつかれさま'}</h1>
+          <h1>{card ? `${card.meaning} (${card.kana})` : 'session complete'}</h1>
         </div>
       </header>
 
