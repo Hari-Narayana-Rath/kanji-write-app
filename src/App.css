@@ -157,10 +157,10 @@
 
 .practice-topbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 18px;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .topbar-copy {
@@ -175,7 +175,6 @@
 .topbar-stats {
   display: flex;
   gap: 10px;
-  flex-wrap: wrap;
 }
 
 .topbar-stats span {
@@ -188,15 +187,11 @@
 }
 
 .practice-card {
-  padding: 28px;
+  padding: 20px;
 }
 
 .prompt-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 14px;
 }
 
 .eyebrow,
@@ -217,53 +212,19 @@
   line-height: 0.92;
 }
 
-.stats-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.stats-row span,
 .completion-banner {
   border: 1px solid rgba(29, 53, 41, 0.1);
   background: rgba(255, 252, 245, 0.84);
 }
 
-.stats-row span {
-  border-radius: 999px;
-  padding: 10px 14px;
-  font-size: 0.9rem;
-  color: var(--ink-soft);
-}
-
 .stage-panel {
   display: grid;
-  gap: 18px;
-}
-
-.stage-meta {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-}
-
-.stage-meta > div {
-  padding: 14px 16px;
-  border-radius: 20px;
-  background: rgba(255, 252, 245, 0.74);
-  border: 1px solid rgba(29, 53, 41, 0.08);
-}
-
-.value {
-  margin: 6px 0 0;
-  font-size: 1.05rem;
-  color: var(--ink);
 }
 
 .board-wrap {
   position: relative;
-  min-height: 520px;
+  min-height: 420px;
   display: grid;
   place-items: center;
   border-radius: 28px;
@@ -300,11 +261,7 @@
   background: rgba(250, 244, 232, 0.72);
   backdrop-filter: blur(4px);
   z-index: 2;
-}
-
-.board-overlay.error {
-  color: var(--error);
-}
+  }
 
 .empty-state {
   gap: 8px;
@@ -332,18 +289,23 @@
   color: var(--ink);
 }
 
-.actions-row,
+.board-controls,
 .grade-row {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.actions-row {
-  justify-content: space-between;
+.board-controls {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  justify-content: center;
 }
 
-.actions-row button,
+.board-controls button,
 .grade-row button {
   border: none;
   border-radius: 16px;
@@ -356,98 +318,25 @@
     opacity 160ms ease;
 }
 
-.actions-row button {
+.board-controls button {
   background: var(--ink);
   color: #f8f2e5;
 }
 
-.actions-row button:disabled,
+.board-controls button:disabled,
 .grade-row button:disabled {
   opacity: 0.44;
   cursor: not-allowed;
   transform: none;
 }
 
-.actions-row button:not(:disabled):hover,
+.board-controls button:not(:disabled):hover,
 .grade-row button:not(:disabled):hover {
   transform: translateY(-1px);
 }
 
 .review-panel {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(29, 53, 41, 0.08);
-}
-
-.review-copy p {
-  margin: 0;
-}
-
-.review-copy p + p {
-  margin-top: 8px;
-}
-
-.vocab-panel {
-  border-top: 1px solid rgba(29, 53, 41, 0.08);
-  padding-top: 18px;
-}
-
-.vocab-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.vocab-header span {
-  font-size: 0.88rem;
-  color: var(--ink-soft);
-}
-
-.vocab-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.vocab-card {
-  border-radius: 20px;
-  padding: 14px 16px;
-  background: rgba(255, 252, 245, 0.74);
-  border: 1px solid rgba(29, 53, 41, 0.08);
-}
-
-.vocab-main {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: baseline;
-}
-
-.vocab-main strong {
-  font-family: 'Noto Sans JP', 'Space Grotesk', sans-serif;
-  font-size: 1.2rem;
-  color: var(--ink);
-}
-
-.vocab-main span,
-.vocab-card p {
-  color: var(--ink-soft);
-}
-
-.vocab-card p {
-  margin: 10px 0 0;
-  font-size: 0.94rem;
-}
-
-.micro-copy {
-  font-size: 0.92rem;
-  color: var(--ink-soft);
+  margin-top: 14px;
 }
 
 .grade {
@@ -481,33 +370,27 @@
   .practice-card,
   .level-card {
     border-radius: 26px;
-    padding: 20px;
+    padding: 18px;
   }
 
   .hero-card,
-  .prompt-header,
   .review-panel,
   .practice-topbar {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
   }
 
   .level-grid,
-  .level-picker,
-  .stage-meta {
+  .level-picker {
     grid-template-columns: 1fr;
   }
 
   .board-wrap {
-    min-height: 380px;
+    min-height: 360px;
   }
 
   .writer-stage {
     padding: 14px;
-  }
-
-  .vocab-list {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -528,7 +411,7 @@
   .practice-card,
   .level-card {
     border-radius: 22px;
-    padding: 16px;
+    padding: 14px;
   }
 
   .prompt-header h1 {
@@ -536,41 +419,31 @@
   }
 
   .topbar-stats,
-  .stats-row,
-  .actions-row,
+  .board-controls,
   .grade-row {
     width: 100%;
   }
 
-  .topbar-stats span,
-  .stats-row span {
-    flex: 1 1 calc(50% - 10px);
+  .topbar-stats span {
+    flex: 1 1 auto;
     text-align: center;
   }
 
-  .actions-row button,
+  .board-controls button,
   .grade-row button,
   .ghost-button,
   .primary-button {
     width: 100%;
   }
 
-  .stage-meta {
-    gap: 10px;
-  }
-
-  .stage-meta > div {
-    padding: 12px 14px;
-  }
-
   .board-wrap {
-    min-height: 320px;
+    min-height: 300px;
     border-radius: 22px;
   }
 
   .writer-stage {
     width: 100%;
-    padding: 10px;
+    padding: 8px;
   }
 
   .completion-banner {
@@ -578,10 +451,5 @@
     right: 12px;
     bottom: 12px;
     justify-content: space-between;
-  }
-
-  .vocab-card {
-    border-radius: 16px;
-    padding: 12px 14px;
   }
 }

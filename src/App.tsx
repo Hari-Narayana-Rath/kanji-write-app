@@ -2,7 +2,6 @@ import { useEffect, useEffectEvent, useId, useRef, useState } from 'react'
 import { KanjiVGParser, KanjiWriter } from 'kanji-recognizer'
 import './App.css'
 import { lessonDeck, type LessonCard } from './data/lessonDeck'
-import { vocabIndex } from './data/vocabIndex'
 import {
   getNextDueAt,
   hydrateProgress,
@@ -33,13 +32,6 @@ function formatReviewTime(timestamp: number | null) {
     month: 'short',
     day: 'numeric',
   }).format(timestamp)
-}
-
-function getRecommendedGrade(hintsUsed: number, mistakes: number): ReviewGrade {
-  if (mistakes >= 4) return 'again'
-  if (mistakes >= 2 || hintsUsed === MAX_HINTS) return 'hard'
-  if (mistakes === 0 && hintsUsed === 0) return 'easy'
-  return 'good'
 }
 
 function getLevelCards(level: Level) {
@@ -232,34 +224,20 @@ function PracticeBoard({
   level,
   loading,
   paths,
-  error,
   onGrade,
 }: {
   card: LessonCard | null
   level: Level
   loading: boolean
   paths: string[] | null
-  error: string | null
   onGrade: (card: LessonCard, grade: ReviewGrade) => void
 }) {
   const writerId = useId().replace(/[:]/g, '')
   const stageRef = useRef<HTMLDivElement | null>(null)
   const writerRef = useRef<KanjiWriter | null>(null)
-  const [strokeProgress, setStrokeProgress] = useState(0)
-  const [mistakes, setMistakes] = useState(0)
   const [hintsUsed, setHintsUsed] = useState(0)
   const [completed, setCompleted] = useState(false)
   const [animating, setAnimating] = useState(false)
-  const recommendedGrade = getRecommendedGrade(hintsUsed, mistakes)
-  const vocabItems = card ? vocabIndex[card.kanji]?.slice(0, 4) ?? [] : []
-
-  const onStrokeCorrect = useEffectEvent(() => {
-    setStrokeProgress((value) => value + 1)
-  })
-
-  const onStrokeIncorrect = useEffectEvent(() => {
-    setMistakes((value) => value + 1)
-  })
 
   const onKanjiComplete = useEffectEvent(() => {
     setCompleted(true)
@@ -291,16 +269,9 @@ function PracticeBoard({
     })
 
     const baseOnCorrect = writer.onCorrect.bind(writer)
-    const baseOnIncorrect = writer.onIncorrect.bind(writer)
 
     writer.onCorrect = async () => {
-      onStrokeCorrect()
       await baseOnCorrect()
-    }
-
-    writer.onIncorrect = () => {
-      onStrokeIncorrect()
-      baseOnIncorrect()
     }
 
     writer.onComplete = onKanjiComplete
@@ -321,7 +292,6 @@ function PracticeBoard({
   function handleReset() {
     if (!writerRef.current || animating) return
     writerRef.current.clear()
-    setStrokeProgress(0)
     setCompleted(false)
   }
 
@@ -339,29 +309,9 @@ function PracticeBoard({
           <p className="eyebrow">Write the kanji for</p>
           <h1>{card?.kana ?? 'おつかれさま'}</h1>
         </div>
-        <div className="stats-row">
-          <span>{card?.jlpt ?? level}</span>
-          <span>{card ? `${card.strokes} strokes` : 'Done'}</span>
-          <span>{Math.max(MAX_HINTS - hintsUsed, 0)} hints left</span>
-        </div>
       </header>
 
       <section className="stage-panel">
-        <div className="stage-meta">
-          <div>
-            <p className="label">Prompt</p>
-            <p className="value">{card?.meaning ?? 'Session complete'}</p>
-          </div>
-          <div>
-            <p className="label">Progress</p>
-            <p className="value">{card && paths ? `${strokeProgress}/${paths.length}` : '0/0'}</p>
-          </div>
-          <div>
-            <p className="label">Suggested rating</p>
-            <p className="value">{recommendedGrade}</p>
-          </div>
-        </div>
-
         <div className="board-wrap">
           {!card ? (
             <div className="empty-state">
@@ -371,8 +321,22 @@ function PracticeBoard({
           ) : (
             <>
               {loading && <div className="board-overlay">Loading stroke data…</div>}
-              {error && <div className="board-overlay error">{error}</div>}
               <div id={writerId} ref={stageRef} className="writer-stage" />
+              <div className="board-controls">
+                <button
+                  type="button"
+                  onClick={handleHint}
+                  disabled={!card || loading || completed || hintsUsed >= MAX_HINTS || animating}
+                >
+                  Hint
+                </button>
+                <button type="button" onClick={handleReset} disabled={!card || loading || animating}>
+                  Reset
+                </button>
+                <button type="button" onClick={handleReveal} disabled={!card || loading || completed || animating}>
+                  Reveal
+                </button>
+              </div>
               {completed && (
                 <div className="completion-banner">
                   <span>Kanji complete</span>
@@ -383,58 +347,13 @@ function PracticeBoard({
           )}
         </div>
 
-        <div className="actions-row">
-          <button
-            type="button"
-            onClick={handleHint}
-            disabled={!card || loading || completed || hintsUsed >= MAX_HINTS || animating}
-          >
-            Hint
-          </button>
-          <button type="button" onClick={handleReset} disabled={!card || loading || animating}>
-            Reset
-          </button>
-          <button type="button" onClick={handleReveal} disabled={!card || loading || completed || animating}>
-            Reveal
-          </button>
-        </div>
-
-        {card && vocabItems.length > 0 && (
-          <section className="vocab-panel">
-            <div className="vocab-header">
-              <p className="label">Useful vocab</p>
-              <span>{card.kanji} words</span>
-            </div>
-            <div className="vocab-list">
-              {vocabItems.map((item) => (
-                <article key={`${card.kanji}-${item.word}-${item.reading}`} className="vocab-card">
-                  <div className="vocab-main">
-                    <strong>{item.word}</strong>
-                    <span>{item.reading}</span>
-                  </div>
-                  <p>{item.meaning}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        )}
       </section>
 
       {card && (
         <footer className="review-panel">
-          <div className="review-copy">
-            <p className="eyebrow">Anki-style scheduling</p>
-            <p>Only {level} cards are scheduled here. N5, N4, and N3 stay fully separate.</p>
-          </div>
           <div className="grade-row">
             <button type="button" className="grade again" onClick={() => onGrade(card, 'again')} disabled={!completed}>
               Again
-            </button>
-            <button type="button" className="grade hard" onClick={() => onGrade(card, 'hard')} disabled={!completed}>
-              Hard
-            </button>
-            <button type="button" className="grade good" onClick={() => onGrade(card, 'good')} disabled={!completed}>
-              Good
             </button>
             <button type="button" className="grade easy" onClick={() => onGrade(card, 'easy')} disabled={!completed}>
               Easy
@@ -451,32 +370,25 @@ function PracticePage({
   profile,
   progress,
   onGrade,
-  onBack,
 }: {
   level: Level
   profile: Profile
   progress: ReviewProgressMap
   onGrade: (card: LessonCard, grade: ReviewGrade) => void
-  onBack: () => void
 }) {
   const cards = getLevelCards(level)
   const currentCard = selectNextCard(cards, getLevelProgress(progress, level))
-  const { loading, paths, error } = useKanjiPaths(currentCard)
+  const { loading, paths } = useKanjiPaths(currentCard)
 
   return (
     <main className="screen practice-screen">
       <header className="practice-topbar">
-        <button type="button" className="ghost-button" onClick={onBack}>
-          Back
-        </button>
         <div className="topbar-copy">
           <p className="eyebrow">{profile.name}</p>
-          <strong>{level} practice</strong>
+          <strong>{level} writing</strong>
         </div>
         <div className="topbar-stats">
           <span>{getDueCount(progress, level)} due</span>
-          <span>{cards.length} cards</span>
-          <span>{formatReviewTime(getNextDue(progress, level))}</span>
         </div>
       </header>
 
@@ -486,7 +398,6 @@ function PracticePage({
         level={level}
         loading={loading}
         paths={paths}
-        error={error}
         onGrade={onGrade}
       />
     </main>
@@ -535,7 +446,6 @@ function App() {
       profile={profile}
       progress={progress}
       onGrade={handleGrade}
-      onBack={() => setCurrentLevel(null)}
     />
   )
 }
