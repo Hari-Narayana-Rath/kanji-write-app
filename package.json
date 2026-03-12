@@ -8,8 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "sync:deck": "node scripts/generate-jlpt-deck.mjs",
-    "sync:vocab": "node scripts/generate-vocab-index.mjs"
+    "sync:deck": "node scripts/generate-jlpt-deck.mjs"
   },
   "dependencies": {
     "kanji": "^0.19.3",

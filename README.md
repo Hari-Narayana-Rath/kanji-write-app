@@ -6,7 +6,6 @@ Phone-first kanji writing practice app with:
 - Anki-style spaced repetition
 - separate `N5`, `N4`, and `N3` decks
 - local profile and progress storage
-- related vocabulary shown during practice
 
 ## Development
 
@@ -27,12 +26,6 @@ Regenerate the JLPT kanji deck:
 
 ```bash
 npm run sync:deck
-```
-
-Regenerate the related vocabulary index:
-
-```bash
-npm run sync:vocab
 ```
 
 ## GitHub Pages
