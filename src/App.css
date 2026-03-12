@@ -49,6 +49,13 @@
   max-width: 60ch;
 }
 
+.auth-note,
+.subtle-mail {
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
 .field {
   display: grid;
   gap: 10px;

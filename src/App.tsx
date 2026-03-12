@@ -13,15 +13,17 @@ import {
 } from './lib/srs'
 
 const PROFILE_KEY = 'kanji-write-profile'
-const PROGRESS_KEY = 'kanji-write-progress'
 const MAX_HINTS = 2
 
 type Level = 'N5' | 'N4' | 'N3'
 
 type Profile = {
   name: string
+  email: string
   level: Level
 }
+
+type StoredProfiles = Record<string, Profile>
 
 function formatReviewTime(timestamp: number | null) {
   if (!timestamp) return 'All reviews finished for now'
@@ -63,6 +65,33 @@ function loadProfile() {
 
 function saveProfile(profile: Profile) {
   window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase()
+}
+
+function getProfilesKey() {
+  return 'kanji-write-profiles'
+}
+
+function getProgressKey(email: string) {
+  return `kanji-write-progress:${normalizeEmail(email)}`
+}
+
+function loadStoredProfiles() {
+  try {
+    const raw = window.localStorage.getItem(getProfilesKey())
+    return raw ? (JSON.parse(raw) as StoredProfiles) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveStoredProfile(profile: Profile) {
+  const profiles = loadStoredProfiles()
+  profiles[normalizeEmail(profile.email)] = profile
+  window.localStorage.setItem(getProfilesKey(), JSON.stringify(profiles))
 }
 
 function useKanjiPaths(card: LessonCard | null) {
@@ -108,7 +137,26 @@ function useKanjiPaths(card: LessonCard | null) {
 
 function LoginPage({ onSave }: { onSave: (profile: Profile) => void }) {
   const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [level, setLevel] = useState<Level>('N5')
+  const [error, setError] = useState('')
+
+  function handleContinue() {
+    const normalizedEmail = normalizeEmail(email)
+
+    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError('Enter a valid email address.')
+      return
+    }
+
+    const existing = loadStoredProfiles()[normalizedEmail]
+    const profile: Profile = existing
+      ? { ...existing, name: name.trim() || existing.name, level }
+      : { name: name.trim() || 'Learner', email: normalizedEmail, level }
+
+    setError('')
+    onSave(profile)
+  }
 
   return (
     <main className="screen auth-screen">
@@ -116,12 +164,28 @@ function LoginPage({ onSave }: { onSave: (profile: Profile) => void }) {
         <p className="eyebrow">Kanji Write</p>
         <h1>Personal study space</h1>
         <p className="lead">
-          Save your name on this device, choose a starting level, and keep review progress separated by JLPT deck.
+          Use your email as a local identity on this device. Each email gets its own cached progress and level history.
         </p>
 
         <label className="field">
+          <span>Email</span>
+          <input
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="name@example.com"
+            inputMode="email"
+            autoComplete="email"
+          />
+        </label>
+
+        <label className="field">
           <span>Name</span>
-          <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" />
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Your name"
+            autoComplete="name"
+          />
         </label>
 
         <div className="field">
@@ -143,10 +207,14 @@ function LoginPage({ onSave }: { onSave: (profile: Profile) => void }) {
         <button
           type="button"
           className="primary-button"
-          onClick={() => onSave({ name: name.trim() || 'Learner', level })}
+          onClick={handleContinue}
         >
           Continue
         </button>
+
+        <p className="auth-note">
+          {error || 'Email OTP is possible with a real auth provider, but this app currently stores profiles locally in the browser.'}
+        </p>
       </section>
     </main>
   )
@@ -172,6 +240,7 @@ function HomePage({
           <p className="eyebrow">Welcome back</p>
           <h1>{profile.name}</h1>
           <p className="lead">Open one JLPT deck at a time. N5 never mixes N4 or N3 cards, and the same rule applies to every level.</p>
+          <p className="subtle-mail">{profile.email}</p>
         </div>
         <button type="button" className="ghost-button" onClick={onEditProfile}>
           Edit profile
@@ -409,15 +478,18 @@ function App() {
   const [profile, setProfile] = useState<Profile | null>(() => loadProfile())
   const [currentLevel, setCurrentLevel] = useState<Level | null>(null)
   const [progress, setProgress] = useState<ReviewProgressMap>(() =>
-    hydrateProgress(lessonDeck, PROGRESS_KEY),
+    hydrateProgress(lessonDeck, getProgressKey(loadProfile()?.email || 'guest')),
   )
 
   useEffect(() => {
-    saveProgress(progress, PROGRESS_KEY)
-  }, [progress])
+    if (!profile) return
+    saveProgress(progress, getProgressKey(profile.email))
+  }, [profile, progress])
 
   function handleSaveProfile(nextProfile: Profile) {
+    setProgress(hydrateProgress(lessonDeck, getProgressKey(nextProfile.email)))
     saveProfile(nextProfile)
+    saveStoredProfile(nextProfile)
     setProfile(nextProfile)
     setCurrentLevel(null)
   }
