@@ -51,8 +51,4 @@ To build for the Play Store later you still need:
 - Android SDK
 - a Play Console account
 
-## GitHub Pages
 
-This repo is configured for GitHub Pages at:
-
-`https://hari-narayana-rath.github.io/kanji-write-app/`
